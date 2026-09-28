@@ -1,0 +1,46 @@
+name: Verify Renovate Dependencies
+
+on:
+  push:
+    paths:
+      - .github/workflows/verify-renovate.yml
+      - scripts/update-renovate-snapshot.sh
+      - renovate.json
+      - versions.yaml
+      - Dockerfile
+      - scripts/install.sh
+  workflow_dispatch:
+    inputs:
+      update_snapshot:
+        description: "Update the snapshot file"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  verify-renovate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check dependencies against snapshot
+        if: ${{ !inputs.update_snapshot }}
+        run: ./scripts/update-renovate-snapshot.sh --check
+
+      - name: Update snapshot (manual trigger)
+        if: ${{ inputs.update_snapshot }}
+        run: |
+          ./scripts/update-renovate-snapshot.sh --update
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/renovate-snapshot.json
+          git commit -m "chore: update renovate dependency snapshot [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Dump renovate log and snapshot
+        if: always()
+        run: |
+          cat /tmp/renovate-err.log || true
+          jq . .github/renovate-snapshot.json 2>/dev/null || true

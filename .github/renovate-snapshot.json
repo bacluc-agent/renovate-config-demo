@@ -1,0 +1,22 @@
+[
+  {
+    "file": "Dockerfile",
+    "depName": "alpine",
+    "currentValue": "3.21.3"
+  },
+  {
+    "file": "scripts/install.sh",
+    "depName": "opencode-ai",
+    "currentValue": "1.2.3"
+  },
+  {
+    "file": "scripts/update-renovate-snapshot.sh",
+    "depName": "renovate/renovate",
+    "currentValue": "44.115.13"
+  },
+  {
+    "file": "versions.yaml",
+    "depName": "ghcr.io/bacluc/prettier-image/prettier-image",
+    "currentValue": "5.1.0"
+  }
+]
