@@ -19,9 +19,29 @@ show_help() {
 }
 
 generate_snapshot() {
-    docker run --rm -e LOG_LEVEL=debug -e LOG_FORMAT=json -v "$REPO_ROOT:/workspace" -w /workspace renovate/renovate:${RENOVATE_VERSION} --platform=local 2>/tmp/renovate-err.log | jq -s \
-        '(first(.[] | select(.msg == "packageFiles with updates")).config // {}) | [ .[] | .[] | . as $pf | .deps[] | select(has("depName") and has("currentValue")) | {file: $pf.packageFile, depName: .depName, currentValue: .currentValue}] | sort_by(.file, .depName)' \
-        | jq 'map(select(.file | startswith(".github/workflows/") | not))'
+    # Retry: a transient preset-fetch failure makes Renovate exit 0 with an
+    # empty snapshot, which used to surface only as an opaque expect_pairs
+    # failure. Capture raw output so the reason is visible in CI logs.
+    local attempt tmp
+    tmp=$(mktemp)
+    for attempt in 1 2 3; do
+        if docker run --rm -e LOG_LEVEL=debug -e LOG_FORMAT=json -v "$REPO_ROOT:/workspace" -w /workspace renovate/renovate:${RENOVATE_VERSION} --platform=local >/tmp/renovate-out.log 2>/tmp/renovate-err.log \
+            && jq -s \
+                '(first(.[] | select(.msg == "packageFiles with updates")).config // {}) | [ .[] | .[] | . as $pf | .deps[] | select(has("depName") and has("currentValue")) | {file: $pf.packageFile, depName: .depName, currentValue: .currentValue}] | sort_by(.file, .depName)' \
+                /tmp/renovate-out.log 2>/dev/null \
+            | jq 'map(select(.file | startswith(".github/workflows/") | not))' > "$tmp" 2>/dev/null \
+            && [ -s "$tmp" ] && [ "$(cat "$tmp")" != "[]" ]; then
+            cat "$tmp"
+            rm -f "$tmp"
+            return 0
+        fi
+        echo "Renovate attempt $attempt found no dependencies; retrying in 10s..." >&2
+        sleep 10
+    done
+    rm -f "$tmp"
+    echo "Renovate found no dependencies after 3 attempts; warn/error log lines:" >&2
+    jq -r 'select(.level >= 40) | "\(.level) \(.msg)"' /tmp/renovate-out.log 2>/dev/null | head -20 >&2
+    return 1
 }
 
 expect_pairs() {
