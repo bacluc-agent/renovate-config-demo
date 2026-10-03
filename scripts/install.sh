@@ -1,3 +1,3 @@
 #!/bin/bash
 # renovate: datasource=npm depName=opencode-ai
-OPENCODE_VERSION=1.2.3
+OPENCODE_VERSION=1.18.34
