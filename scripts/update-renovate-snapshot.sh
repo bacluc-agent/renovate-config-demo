@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # renovate: datasource=docker depName=renovate/renovate
-RENOVATE_VERSION="44.115.13"
+RENOVATE_VERSION="44.222.5"
 
 set -euo pipefail
 
